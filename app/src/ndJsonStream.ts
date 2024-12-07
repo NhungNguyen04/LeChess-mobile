@@ -8,8 +8,12 @@ export interface Stream {
   close(): Promise<void>;
 }
 
-export const readStream = (name: string, response: Response, handler: Handler): Stream => {
-  const stream = response.body!.getReader();
+export const readStream = (name: string, response: Response): Stream => {
+  if (!response.body) {
+    throw new Error('Response body is undefined');
+  }
+
+  const stream = response.body.getReader();
   const matcher = /\r?\n/;
   const decoder = new TextDecoder();
   let buf = '';
@@ -17,18 +21,20 @@ export const readStream = (name: string, response: Response, handler: Handler): 
   const process = (json: string) => {
     const msg = JSON.parse(json);
     console.log(name, msg);
-    handler(msg);
   };
 
   const loop: () => Promise<void> = () =>
     stream.read().then(({ done, value }) => {
+      console.log("Stream read:", { done, value });
       if (done) {
+        console.log("Stream done");
         if (buf.length > 0) process(buf);
         return;
       } else {
         const chunk = decoder.decode(value, {
           stream: true,
         });
+        console.log("Chunk received:", chunk);
         buf += chunk;
 
         const parts = buf.split(matcher);
@@ -36,6 +42,8 @@ export const readStream = (name: string, response: Response, handler: Handler): 
         for (const i of parts.filter(p => p)) process(i);
         return loop();
       }
+    }).catch(error => {
+      console.error("Error reading stream:", error);
     });
 
   return {

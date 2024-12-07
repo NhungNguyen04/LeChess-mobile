@@ -39,7 +39,7 @@ export default function AuthScreen() {
           value={token}
           onChangeText={setToken}
         />
-        <Button title="Submit Token" onPress={handleManualTokenEntry} />
+        <Button title="Submit Token" onPress={handleManualTokenEntry} color="#344e41"/>
       </View>
     </SafeAreaView>
   );

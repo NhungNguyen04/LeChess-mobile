@@ -4,6 +4,9 @@ import { Stack, Slot } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { DripsyProvider, makeTheme } from 'dripsy';
+
+
 
 SplashScreen.preventAutoHideAsync();
 
@@ -24,12 +27,16 @@ export default function RootLayout() {
     return null; // Keep the splash screen visible until fonts are loaded
   }
 
+  const theme = makeTheme({});
+
   return (
+    <DripsyProvider theme={theme}>
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack screenOptions={{ headerShown: false }}>
         {/* Slot allows nested routes to render dynamically */}
         <Slot />
       </Stack>
     </ThemeProvider>
+    </DripsyProvider>
   );
 }

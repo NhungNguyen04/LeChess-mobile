@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, FlatList, Activ
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { WebView } from 'react-native-webview';
 import { readStream, Stream } from '../../src/ndJsonStream';
+import ChessBoard from '../../../components/ChessBoard';
+import { Auth } from '../../src/auth';
 
 const getAuthState = async () => {
   const authStateString = await AsyncStorage.getItem('authState');
@@ -24,24 +26,28 @@ export default function AIGame() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [playInWebView, setPlayInWebView] = useState(false);
   const streamRef = useRef<Stream | null>(null);
+  const [auth, setAuth] = useState<Auth | null>(null);
 
   useEffect(() => {
     const fetchToken = async () => {
       token = await getAuthState();
+      const authInstance = new Auth();
+      await authInstance.init();
+      setAuth(authInstance);
     };
     fetchToken();
   }, []);
 
-  useEffect(() => {
-    if (gameId) {
-      streamGameMoves();
-    }
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.close();
-      }
-    };
-  }, [gameId]);
+  // useEffect(() => {
+  //   if (gameId) {
+  //     streamGameMoves();
+  //   }
+  //   return () => {
+  //     if (streamRef.current) {
+  //       streamRef.current.close();
+  //     }
+  //   };
+  // }, [gameId]);
 
   const createAiChallenge = async () => {
     setLoading(true);
@@ -52,7 +58,7 @@ export default function AIGame() {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: `level=${encodeURIComponent(aiLevel)}&clock.limit=${encodeURIComponent('300')}&clock.increment=${encodeURIComponent('3')}&color=${encodeURIComponent('random')}`
+        body: `level=${encodeURIComponent(aiLevel)}&clock.limit=${encodeURIComponent('300')}&clock.increment=${encodeURIComponent('3')}&color=${encodeURIComponent('white')}`
       });
 
       const data = await response.json();
@@ -98,48 +104,12 @@ export default function AIGame() {
     }
   };
 
-  const streamGameMoves = async () => {
-    if (!gameId) return;
-
-    try {
-      const response = await fetch(`https://lichess.org/api/board/game/stream/${gameId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to stream game moves');
-      }
-
-      streamRef.current = readStream('Game moves', response, (data) => {
-        if (data.type === 'gameState') {
-          console.log('Game move:', data.moves);
-        }
-      });
-
-      await streamRef.current.closePromise;
-    } catch (error) {
-      console.error('Error streaming game moves:', error);
-    }
-  };
-
-  if (playInWebView && gameId) {
+  
+  if (playInWebView && gameId && auth) {
     return (
-      <WebView
-        source={{ uri: `https://lichess.org/${gameId}` }}
-        style={{ flex: 1 }}
-        onError={(syntheticEvent) => {
-          const { nativeEvent } = syntheticEvent;
-          Alert.alert('WebView error', nativeEvent.description);
-        }}
-        startInLoadingState={true}
-        renderLoading={() => (
-          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <ActivityIndicator size="large" color="#0000ff" />
-          </View>
-        )}
-      />
+      <View style={{ flex: 1 }}>
+        <ChessBoard gameId={gameId} auth={auth} />
+      </View>
     );
   }
 
@@ -247,7 +217,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   button: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#344e41',
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',

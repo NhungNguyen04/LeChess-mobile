@@ -1,7 +1,8 @@
 import * as AuthSession from 'expo-auth-session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
-import { Platform } from 'react-native';
+import { readStream } from './ndJsonStream';
+
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -181,4 +182,57 @@ export class Auth {
     await this.logout();
     await this.login();
   }
+
+  fetchResponse = async (path: string, config: any = {}) => {
+    if (!this.me) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      console.log(`Fetching ${path} with config:`, config);
+      const response = await fetch(`${lichessHost}${path}`, {
+        ...config,
+        headers: {
+          ...config.headers,
+          Authorization: `Bearer ${this.me.accessToken}`,
+        },
+      });
+
+      console.log(`Response for ${path}:`, response);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch: ${response.statusText}`);
+      }
+
+      return response;
+    } catch (error) {
+      console.error(`Error fetching ${path}:`, error);
+      throw error;
+    }
+  };
+
+  fetchBody = async (path: string, config: any = {}) => {
+    try {
+      const res = await this.fetchResponse(path, config);
+      const body = await res.json();
+      return body;
+    } catch (error) {
+      console.error(`Error fetching body from ${path}:`, error);
+      throw error;
+    }
+  };
+
+  openStream = async (path: string, config: any) => {
+    try {
+        console.log(`Opening stream for path: ${path}`);
+        const response = await this.fetchResponse(path, config);
+        console.log(`Stream response received for path: ${path}`, response);
+        const stream = readStream(`STREAM ${path}`, response);
+        console.log(`Stream created for path: ${path}`, stream);
+        return stream;
+    } catch (error) {
+        console.error(`Error opening stream for path: ${path}`, error);
+        throw error;
+    }
+  };
 }

@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Auth, Me } from '../app/src/auth'; // Adjust the import path as needed
-
-const auth = new Auth();
+import { auth, Auth, Me } from '../app/src/auth'; // Adjusted import to use singleton
 
 export function useAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -12,7 +10,7 @@ export function useAuth() {
     setIsLoading(true);
     try {
       await auth.init();
-      setIsAuthenticated(!!auth.me);
+      setIsAuthenticated(auth.isLoggedIn);
       setUser(auth.me || null);
     } catch (error) {
       console.error('Error initializing auth:', error);

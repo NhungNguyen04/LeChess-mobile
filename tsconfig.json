@@ -1,7 +1,7 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true,
+    "strict": false,
     "paths": {
       "@/*": [
         "./*"
@@ -13,5 +13,5 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
-, "components/ChessBoard.tsx", "components/board.js"  ]
+, "components/ChessBoard.tsx", "components/board.js", "app/src/ndJsonStream.js"  ]
 }

@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, FlatList, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { WebView } from 'react-native-webview';
-import { readStream, Stream } from '../../src/ndJsonStream';
-import ChessBoard from '../../../components/ChessBoard';
+import Chessboard, {ChessboardRef} from 'react-native-chessboard';
 import { Auth } from '../../src/auth';
 
 const getAuthState = async () => {
@@ -25,7 +23,7 @@ export default function AIGame() {
   const [modalVisible, setModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [playInWebView, setPlayInWebView] = useState(false);
-  const streamRef = useRef<Stream | null>(null);
+  const streamRef = useRef<{ closePromise: Promise<void>; close: () => void } | null>(null);
   const [auth, setAuth] = useState<Auth | null>(null);
 
   useEffect(() => {
@@ -38,16 +36,75 @@ export default function AIGame() {
     fetchToken();
   }, []);
 
-  // useEffect(() => {
-  //   if (gameId) {
-  //     streamGameMoves();
-  //   }
-  //   return () => {
-  //     if (streamRef.current) {
-  //       streamRef.current.close();
-  //     }
-  //   };
-  // }, [gameId]);
+  const [gameState, setGameState] = useState<any>(null);
+  const [streamError, setStreamError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const openStreamConnection = async () => {
+      if (auth && gameId) {
+        try {
+          const handleStreamMessage = (msg: any) => {
+            console.log('Stream message:', msg);
+            setGameState((prevState: any) => ({ ...prevState, ...msg }));
+          };
+
+          const stream = await auth.openStream(
+            `/api/board/game/stream/${gameId}`,
+            {},
+            handleStreamMessage
+          );
+          streamRef.current = {
+            closePromise: stream.closePromise.then(() => undefined),
+              close: stream.close,
+          };
+          console.log('Stream opened:', streamRef.current);
+
+          streamRef.current.closePromise.catch((error) => {
+            if (isMounted) {
+              setStreamError(`Stream closed unexpectedly: ${error.message}`);
+            }
+          });
+        } catch (error:any) {
+          console.error('Error opening stream:', error);
+          if (isMounted) {
+            setStreamError(`Failed to open stream: ${error.message}`);
+          }
+        }
+      }
+    };
+
+    openStreamConnection();
+
+    return () => {
+      isMounted = false;
+      if (streamRef.current) {
+        streamRef.current.close();
+        console.log('Stream closed');
+      }
+    };
+  }, [gameId, auth]);
+  const renderStreamError = () => {
+    if (!streamError) return null;
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{streamError}</Text>
+      </View>
+    );
+  };
+
+
+  const renderGameState = () => {
+    if (!gameState) return null;
+    return (
+      <View style={styles.gameInfo}>
+        <Text style={styles.gameStateText}>Game State:</Text>
+        <Text>{JSON.stringify(gameState, null, 2)}</Text>
+      </View>
+    );
+  };
+
 
   const createAiChallenge = async () => {
     setLoading(true);
@@ -103,18 +160,29 @@ export default function AIGame() {
       console.error(error);
     }
   };
-
+  const chessboardRef = useRef<ChessboardRef>(null);
   
   if (playInWebView && gameId && auth) {
     return (
       <View style={{ flex: 1 }}>
-        <ChessBoard gameId={gameId} auth={auth} />
+        <Chessboard
+            ref={chessboardRef}
+            durations={{ move: 1000 }}
+            onMove={async (state) => {
+                if (state.move.color === 'w') {
+                    const res = await auth?.fetchBody(`/api/board/game/${gameId}/move/${state.move.from}${state.move.to}`, { method: 'post' });
+                    console.log("response", res);
+                }
+            }}
+        />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
+   {renderGameState()}
+   {renderStreamError()}
       <View style={styles.content}>
         <View style={styles.selectContainer}>
           <Text style={styles.label}>AI Level (1-8)</Text>
@@ -240,6 +308,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     borderRadius: 8,
   },
+  gameStateText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
   gameIdText: {
     fontSize: 16,
     fontWeight: 'bold',
@@ -268,5 +341,15 @@ const styles = StyleSheet.create({
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#cccccc',
+  },
+  errorContainer: {
+    marginTop: 20,
+    padding: 15,
+    backgroundColor: '#ffebee',
+    borderRadius: 8,
+  },
+  errorText: {
+    color: '#d32f2f',
+    fontSize: 14,
   },
 });

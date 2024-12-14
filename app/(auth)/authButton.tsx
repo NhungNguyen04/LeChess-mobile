@@ -1,11 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Button, Alert } from 'react-native';
 import { Redirect, useRouter } from 'expo-router';
-import { Auth, Me } from '../src/auth'; // Import the Auth class and Me interface
+import { Auth, Me, auth } from '../src/auth'; // Import the Auth class, Me interface, and use the singleton instance
 import {useAuth} from '../../hooks/useAuth';
-
-// Initialize the Auth instance
-const auth = new Auth();
 
 export default function AuthButton() {
   // State to hold the user information

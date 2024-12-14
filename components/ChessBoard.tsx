@@ -10,12 +10,16 @@ import { io, Socket } from 'socket.io-client';
 
 
 
-const useRandomMove = (chess: any) => {
+const useRandomMove = (chess: any, socket: Socket | null, gameId: any) => {
     while (!chess.isGameOver() && chess.turn() === 'b') {
-        const moves = chess.moves();
+        const moves = chess.moves({ verbose: true });
         const move = moves[Math.floor(Math.random() * moves.length)];
-        console.log("move:", move)
+        console.log("move:", move);
         chess.move(move);
+        if (socket) {
+            const formattedMove = `${move.from}${move.to}`;
+            socket.emit('opponentMove',{ gameId: gameId, formattedMove });
+        }
     }
 };
 
@@ -34,22 +38,22 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ gameId, auth }) => {
     const socketRef = useRef<Socket | null>(null);
 
     useEffect(() => {
-        // const openStream = async () => {
-        //     try {
-        //         console.log("Attempting to open stream...");
-        //         const stream = await auth.openStream(`/api/board/game/stream/${gameId}`, {});
-        //         console.log("Stream opened:", stream);
-        //         stream.closePromise.then(() => console.log("Stream closed"));
-        //     } catch (error) {
-        //         console.error("Error opening stream:", error);
-        //     }
-        // };
-        // if (gameId) {
-        //     console.log("Game ID available, opening stream...");
-        //     openStream();
-        // } else {
-        //     console.log("No Game ID, stream not opened.");
-        // }
+        const openStream = async () => {
+            try {
+                console.log("Attempting to open stream...");
+                const stream = await auth.openStream(`/api/board/game/stream/${gameId}`, {});
+                console.log("Stream opened:", stream);
+                stream.closePromise.then(() => console.log("Stream closed"));
+            } catch (error) {
+                console.error("Error opening stream:", error);
+            }
+        };
+        if (gameId) {
+            console.log("Game ID available, opening stream...");
+            openStream();
+        } else {
+            console.log("No Game ID, stream not opened.");
+        }
         console.log('Initializing socket');
         socketRef.current = io(SERVER_URL);
 
@@ -71,11 +75,11 @@ const ChessBoard: React.FC<ChessBoardProps> = ({ gameId, auth }) => {
             console.log('Socket disconnected');
         });
 
+        useRandomMove(chess, socket, gameId);
 
-        
     }, [gameId, auth, chess]);
 
-    useRandomMove(chess);
+    useRandomMove(chess, socketRef.current, gameId);
 
     useEffect(() => {
         if (gameId) {

@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { View, SafeAreaView, StyleSheet, TextInput, Button, Alert } from 'react-native';
 import AuthButton from './authButton';
-import { Auth, Me } from '../src/auth';
+import { auth, Me } from '../src/auth'; // Use the singleton instance
 import { Redirect, useRouter } from 'expo-router';
 
-
-const auth = new Auth();
 
 export default function AuthScreen() {
     const [user, setUser] = useState<Me | null>(null);

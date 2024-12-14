@@ -9,21 +9,6 @@ import {Auth} from '../app/src/auth'
 import { io, Socket } from 'socket.io-client';
 
 
-
-const useRandomMove = (chess: any, socket: Socket | null) => {
-    while (!chess.isGameOver() && chess.turn() === 'b') {
-        const moves = chess.moves({ verbose: true });
-        const move = moves[Math.floor(Math.random() * moves.length)];
-        console.log("move:", move);
-        chess.move(move);
-        if (socket) {
-            const formattedMove = `${move.from}${move.to}`;
-            socket.emit('opponentMove',{ formattedMove });
-        }
-    }
-};
-
-
 const SERVER_URL = 'http://192.168.98.16:5000';
 
 const ChessBoard: React.FC = () => {
@@ -53,11 +38,9 @@ const ChessBoard: React.FC = () => {
             console.log('Socket disconnected');
         });
 
-        useRandomMove(chess, socket);
 
     }, [ chess]);
 
-    useRandomMove(chess, socketRef.current);
 
 
     const handleSelectPiece = useCallback((square: any) => {

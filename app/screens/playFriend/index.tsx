@@ -1,11 +1,11 @@
 import React from 'react';
 import { View } from 'react-native';
-import Chessboard from 'react-native-chessboard';
+import ChessBoard from '@/components/ChessBoardFriend';
 export default function FriendGame() {
 
   return (
     <View style={{flex:1}}>
-        <Chessboard/>
+        <ChessBoard/>
     </View>
   );
 }

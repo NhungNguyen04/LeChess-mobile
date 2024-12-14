@@ -1,41 +1,73 @@
-import EventSource from "react-native-sse";
 
-type Handler = (line: any) => void;
+type Handler = (data: any) => void;
 
 export interface Stream {
   closePromise: Promise<void>;
   close(): void;
 }
 
-export const readStream = (name: string, url: string, headers: Record<string, string>, handler: Handler): Stream => {
-  const es = new EventSource(url, { headers });
-    es.addEventListener('open', () => {
-      console.log(name, 'connected');
-      console.log('es', es);
-      handler(es);
-    });
-  es.addEventListener('message', (event) => {
-    try {
-      const msg = JSON.parse(event.data);
-      console.log(name, msg);
-      handler(msg);
-    } catch (error) {
-      console.error('Error parsing SSE data:', error);
-    }
-  });
+export const readStream = (url: string, token: string, handler: Handler): Stream => {
+  let closed = false;
+  let controller: AbortController | null = null;
 
-  es.addEventListener('error', (error) => {
-    console.error('SSE error:', error);
+  const closePromise = new Promise<void>((resolve) => {
+    const fetchStream = async () => {
+      try {
+        controller = new AbortController();
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/x-ndjson',
+          },
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (!closed) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.trim()) {
+              try {
+                const data = JSON.parse(line);
+                handler(data);
+              } catch (e) {
+                console.error('Error parsing JSON:', e);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        if (!closed) {
+          console.error('Stream error:', error);
+          // Attempt to reconnect after a delay
+          setTimeout(fetchStream, 5000);
+        }
+      }
+    };
+
+    fetchStream();
   });
 
   return {
-    closePromise: new Promise((resolve) => {
-      es.addEventListener('close', () => {
-        resolve();
-      });
-    }),
+    closePromise,
     close: () => {
-      es.close();
+      closed = true;
+      if (controller) {
+        controller.abort();
+      }
     },
   };
 };
